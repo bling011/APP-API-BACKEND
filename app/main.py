@@ -1,32 +1,36 @@
-# main.py
 from fastapi import FastAPI, HTTPException, Depends
-from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy import create_engine, Column, Integer, String, Boolean
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
-from fastapi.middleware.cors import CORSMiddleware
-import os
+from pydantic import BaseModel
 from dotenv import load_dotenv
+import os
 
 # Load environment variables from .env
 load_dotenv()
 
-# Get the database URL from .env file
+# Database and environment setup
 DATABASE_URL = os.getenv("DATABASE_URL")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
-# Database setup
 engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 Base = declarative_base()
 
-# Pydantic model
-class Item(BaseModel):
-    name: str
-    description: str
-    done: bool = False
+# FastAPI instance
+app = FastAPI()
 
-# SQLAlchemy model
+# CORS Middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[FRONTEND_URL],  # ✅ pull from env
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# DB model
 class ItemDB(Base):
     __tablename__ = "items"
     id = Column(Integer, primary_key=True, index=True)
@@ -34,25 +38,14 @@ class ItemDB(Base):
     description = Column(String)
     done = Column(Boolean, default=False)
 
-# Create tables
+# Pydantic schema
+class Item(BaseModel):
+    name: str
+    description: str
+    done: bool = False
+
+# Create DB tables
 Base.metadata.create_all(bind=engine)
-
-# FastAPI app
-app = FastAPI()
-
-# Allow frontend app (Vercel)
-origins = [
-    "http://localhost:3000",
-    "https://app-api-frontend-jm33q7d0p-bling011s-projects.vercel.app"
-]
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 # DB dependency
 def get_db():
@@ -62,10 +55,15 @@ def get_db():
     finally:
         db.close()
 
-# Routes
+# 🌐 Root route - health check
+@app.get("/")
+def read_root():
+    return {"message": "API is alive"}
+
+# CRUD Routes
 @app.post("/items/")
 def create_item(item: Item, db: Session = Depends(get_db)):
-    db_item = ItemDB(name=item.name, description=item.description, done=item.done)
+    db_item = ItemDB(**item.dict())
     db.add(db_item)
     db.commit()
     db.refresh(db_item)
@@ -78,18 +76,17 @@ def read_items(skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):
 @app.get("/items/{item_id}")
 def read_item(item_id: int, db: Session = Depends(get_db)):
     item = db.query(ItemDB).filter(ItemDB.id == item_id).first()
-    if item is None:
+    if not item:
         raise HTTPException(status_code=404, detail="Item not found")
     return item
 
 @app.put("/items/{item_id}")
 def update_item(item_id: int, item: Item, db: Session = Depends(get_db)):
     db_item = db.query(ItemDB).filter(ItemDB.id == item_id).first()
-    if db_item is None:
+    if not db_item:
         raise HTTPException(status_code=404, detail="Item not found")
-    db_item.name = item.name
-    db_item.description = item.description
-    db_item.done = item.done
+    for key, value in item.dict().items():
+        setattr(db_item, key, value)
     db.commit()
     db.refresh(db_item)
     return db_item
@@ -97,7 +94,7 @@ def update_item(item_id: int, item: Item, db: Session = Depends(get_db)):
 @app.patch("/items/{item_id}/done")
 def mark_item_done(item_id: int, db: Session = Depends(get_db)):
     db_item = db.query(ItemDB).filter(ItemDB.id == item_id).first()
-    if db_item is None:
+    if not db_item:
         raise HTTPException(status_code=404, detail="Item not found")
     db_item.done = True
     db.commit()
@@ -107,7 +104,7 @@ def mark_item_done(item_id: int, db: Session = Depends(get_db)):
 @app.delete("/items/{item_id}")
 def delete_item(item_id: int, db: Session = Depends(get_db)):
     db_item = db.query(ItemDB).filter(ItemDB.id == item_id).first()
-    if db_item is None:
+    if not db_item:
         raise HTTPException(status_code=404, detail="Item not found")
     db.delete(db_item)
     db.commit()
