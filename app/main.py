@@ -6,13 +6,16 @@ from sqlalchemy.ext.declarative import declarative_base
 from pydantic import BaseModel
 from dotenv import load_dotenv
 import os
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
 
 # Load environment variables from .env
 load_dotenv()
 
 # Database and environment setup
 DATABASE_URL = os.getenv("DATABASE_URL")
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")  # Default to local for dev
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
@@ -21,10 +24,10 @@ Base = declarative_base()
 # FastAPI instance
 app = FastAPI()
 
-# CORS Middleware
+# CORS Middleware (Allow multiple origins if needed for testing)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[FRONTEND_URL],  # ✅ pull from env
+    allow_origins=["https://app-api-frontend-git-master-bling011s-projects.vercel.app", "http://localhost:3000"],  # Include both frontend URLs
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
