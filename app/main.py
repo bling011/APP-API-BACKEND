@@ -4,10 +4,18 @@ from pydantic import BaseModel
 from sqlalchemy import create_engine, Column, Integer, String, Boolean
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from fastapi.middleware.cors import CORSMiddleware
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env
+load_dotenv()
+
+# Get the database URL from .env file
+DATABASE_URL = os.getenv("DATABASE_URL=postgresql://fast_api_app_user:RiL7fhtm42Uiel2P2LyCGvt5jYzsBLq0@dpg-cvv2f215pdvs73bv874g-a.oregon-postgres.render.com/fast_api_app")
 
 # Database setup
-SQLALCHEMY_DATABASE_URL = "postgresql://fast_api_app_user:RiL7fhtm42Uiel2P2LyCGvt5jYzsBLq0@dpg-cvv2f215pdvs73bv874g-a.oregon-postgres.render.com/fast_api_app"
-engine = create_engine(SQLALCHEMY_DATABASE_URL)
+engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
@@ -28,6 +36,19 @@ class ItemDB(Base):
 
 # FastAPI app
 app = FastAPI()
+
+# Allow frontend app (Vercel) to make requests to the backend
+origins = [
+    "https://app-api-frontend-p2atix34i-bling011s-projects.vercel.app/",  # Replace with your Vercel frontend URL
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,  # Allow frontend to access backend
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all HTTP methods
+    allow_headers=["*"],  # Allows all headers
+)
 
 # Dependency to get the DB session
 def get_db():
