@@ -44,7 +44,7 @@ origins = [
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,  # Allow frontend to access backend
+    allow_origins=origins ["https://app-api-frontend-n41itdfqz-bling011s-projects.vercel.app"], # Allow frontend to access backend
     allow_credentials=True,
     allow_methods=["*"],  # Allows all HTTP methods
     allow_headers=["*"],  # Allows all headers
