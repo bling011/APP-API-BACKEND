@@ -42,7 +42,7 @@ app = FastAPI()
 
 # Allow frontend app (Vercel)
 origins = [
-    "https://your-frontend-url.vercel.app",  # Replace with your actual frontend Vercel URL
+    "https://app-api-frontend-jm33q7d0p-bling011s-projects.vercel.app",  # Replace with your actual frontend Vercel URL
 ]
 
 app.add_middleware(
