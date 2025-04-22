@@ -39,15 +39,15 @@ app = FastAPI()
 
 # Allow frontend app (Vercel) to make requests to the backend
 origins = [
-    "https://app-api-frontend-p2atix34i-bling011s-projects.vercel.app/",  # Replace with your Vercel frontend URL
+    "https://app-api-frontend-3h6cg3wkc-bling011s-projects.vercel.app",  # Replace with your Vercel frontend URL
 ]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,  # Allow frontend to access backend
+    allow_origins=origins,  # Allow only the frontend URL to access the backend
     allow_credentials=True,
-    allow_methods=["*"],  # Allows all HTTP methods
-    allow_headers=["*"],  # Allows all headers
+    allow_methods=["*"],  # Allow all HTTP methods
+    allow_headers=["*"],  # Allow all headers
 )
 
 # Dependency to get the DB session
