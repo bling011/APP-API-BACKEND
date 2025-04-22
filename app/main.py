@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Get the database URL from .env file
-DATABASE_URL = os.getenv("DATABASE_URL=postgresql://fast_api_app_user:RiL7fhtm42Uiel2P2LyCGvt5jYzsBLq0@dpg-cvv2f215pdvs73bv874g-a.oregon-postgres.render.com/fast_api_app")
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 # Database setup
 engine = create_engine(DATABASE_URL)
