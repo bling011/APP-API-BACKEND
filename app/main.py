@@ -1,24 +1,35 @@
-from fastapi import FastAPI, Depends, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI, HTTPException, Depends
 from sqlalchemy.orm import Session
-from . import models, schemas, crud
-from .database import SessionLocal, engine, Base
+from pydantic import BaseModel
+from sqlalchemy import create_engine, Column, Integer, String, Boolean
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
 
-# Create the database tables (if they don't exist already)
-Base.metadata.create_all(bind=engine)
+# Database setup
+SQLALCHEMY_DATABASE_URL = "postgresql://fast_api_app_user:RiL7fhtm42Uiel2P2LyCGvt5jYzsBLq0@dpg-cvv2f215pdvs73bv874g-a.oregon-postgres.render.com/fast_api_app"
+engine = create_engine(SQLALCHEMY_DATABASE_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
 
+# Pydantic models
+class Item(BaseModel):
+    name: str
+    description: str
+    done: bool = False
+
+# SQLAlchemy models
+class ItemDB(Base):
+    __tablename__ = "items"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, index=True)
+    description = Column(String)
+    done = Column(Boolean, default=False)
+
+# FastAPI app
 app = FastAPI()
 
-# Allow frontend to connect (CORS setup)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Or ["http://localhost:3000"] for stricter security
-    allow_credentials=True,
-    allow_methods=["*"],  # Allows all HTTP methods (GET, POST, PUT, DELETE, etc.)
-    allow_headers=["*"],  # Allows all headers
-)
-
-# Dependency to get the database session
+# Dependency to get the DB session
 def get_db():
     db = SessionLocal()
     try:
@@ -26,41 +37,59 @@ def get_db():
     finally:
         db.close()
 
-@app.post("/todos/", response_model=schemas.Todo)
-def create_todo(todo: schemas.TodoCreate, db: Session = Depends(get_db)):
-    # Create a new todo item using the provided data
-    return crud.create_todo(db=db, todo=todo)
+# Create item (POST)
+@app.post("/items/")
+def create_item(item: Item, db: Session = Depends(get_db)):
+    db_item = ItemDB(name=item.name, description=item.description, done=item.done)
+    db.add(db_item)
+    db.commit()
+    db.refresh(db_item)
+    return db_item
 
-@app.get("/todos/", response_model=list[schemas.Todo])
-def read_todos(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    # Retrieve a list of todos with pagination
-    return crud.get_todos(db, skip=skip, limit=limit)
+# Get all items (GET)
+@app.get("/items/")
+def read_items(skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):
+    items = db.query(ItemDB).offset(skip).limit(limit).all()
+    return items
 
-@app.get("/todos/{todo_id}", response_model=schemas.Todo)
-def read_todo(todo_id: int, db: Session = Depends(get_db)):
-    # Retrieve a specific todo item by its ID
-    db_todo = crud.get_todo(db, todo_id=todo_id)
-    if db_todo is None:
-        raise HTTPException(status_code=404, detail="Todo not found")
-    return db_todo
+# Get item by ID (GET)
+@app.get("/items/{item_id}")
+def read_item(item_id: int, db: Session = Depends(get_db)):
+    item = db.query(ItemDB).filter(ItemDB.id == item_id).first()
+    if item is None:
+        raise HTTPException(status_code=404, detail="Item not found")
+    return item
 
-@app.put("/todos/{todo_id}", response_model=schemas.Todo)
-def update_todo(todo_id: int, todo: schemas.TodoUpdate, db: Session = Depends(get_db)):
-    # Update an existing todo item by its ID
-    db_todo = crud.update_todo(db, todo_id=todo_id, todo=todo)
-    if db_todo is None:
-        raise HTTPException(status_code=404, detail="Todo not found")
-    return db_todo
+# Update item (PUT)
+@app.put("/items/{item_id}")
+def update_item(item_id: int, item: Item, db: Session = Depends(get_db)):
+    db_item = db.query(ItemDB).filter(ItemDB.id == item_id).first()
+    if db_item is None:
+        raise HTTPException(status_code=404, detail="Item not found")
+    db_item.name = item.name
+    db_item.description = item.description
+    db_item.done = item.done
+    db.commit()
+    db.refresh(db_item)
+    return db_item
 
-@app.delete("/todos/{todo_id}", response_model=schemas.Todo)
-def delete_todo(todo_id: int, db: Session = Depends(get_db)):
-    # Delete a specific todo item by its ID
-    db_todo = crud.delete_todo(db, todo_id=todo_id)
-    if db_todo is None:
-        raise HTTPException(status_code=404, detail="Todo not found")
-    return db_todo
+# Mark item as done (PATCH)
+@app.patch("/items/{item_id}/done")
+def mark_item_done(item_id: int, db: Session = Depends(get_db)):
+    db_item = db.query(ItemDB).filter(ItemDB.id == item_id).first()
+    if db_item is None:
+        raise HTTPException(status_code=404, detail="Item not found")
+    db_item.done = True
+    db.commit()
+    db.refresh(db_item)
+    return db_item
 
-# Sample endpoint to test CORS connection
-@app.get("/sample/")
-def get_sample():
-    return {"message": "CORS is working!"}
+# Delete item (DELETE)
+@app.delete("/items/{item_id}")
+def delete_item(item_id: int, db: Session = Depends(get_db)):
+    db_item = db.query(ItemDB).filter(ItemDB.id == item_id).first()
+    if db_item is None:
+        raise HTTPException(status_code=404, detail="Item not found")
+    db.delete(db_item)
+    db.commit()
+    return {"message": "Item deleted successfully"}

@@ -1,31 +1,14 @@
 from sqlalchemy.orm import Session
-from . import models, schemas
+from app import models, schemas
 
-def get_todos(db: Session, skip: int = 0, limit: int = 100):
-    return db.query(models.Todo).offset(skip).limit(limit).all()
-
-def get_todo(db: Session, todo_id: int):
-    return db.query(models.Todo).filter(models.Todo.id == todo_id).first()
-
-def create_todo(db: Session, todo: schemas.TodoCreate):
-    db_todo = models.Todo(**todo.dict())
-    db.add(db_todo)
+# Create a new task
+def create_task(db: Session, title: str, description: str):
+    db_task = models.Task(title=title, description=description)
+    db.add(db_task)
     db.commit()
-    db.refresh(db_todo)
-    return db_todo
+    db.refresh(db_task)
+    return db_task
 
-def update_todo(db: Session, todo_id: int, todo: schemas.TodoUpdate):
-    db_todo = get_todo(db, todo_id)
-    if db_todo:
-        for key, value in todo.dict(exclude_unset=True).items():
-            setattr(db_todo, key, value)
-        db.commit()
-        db.refresh(db_todo)
-    return db_todo
-
-def delete_todo(db: Session, todo_id: int):
-    db_todo = get_todo(db, todo_id)
-    if db_todo:
-        db.delete(db_todo)
-        db.commit()
-    return db_todo
+# Get all tasks
+def get_tasks(db: Session, skip: int = 0, limit: int = 100):
+    return db.query(models.Task).offset(skip).limit(limit).all()
