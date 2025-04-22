@@ -42,7 +42,8 @@ app = FastAPI()
 
 # Allow frontend app (Vercel)
 origins = [
-    "https://app-api-frontend-jm33q7d0p-bling011s-projects.vercel.app",  # Replace with your actual frontend Vercel URL
+    "http://localhost:3000",
+    "https://app-api-frontend-jm33q7d0p-bling011s-projects.vercel.app"
 ]
 
 app.add_middleware(
