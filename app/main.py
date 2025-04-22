@@ -1,3 +1,4 @@
+# main.py
 from fastapi import FastAPI, HTTPException, Depends
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -19,38 +20,40 @@ engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-# Pydantic models
+# Pydantic model
 class Item(BaseModel):
     name: str
     description: str
     done: bool = False
 
-# SQLAlchemy models
+# SQLAlchemy model
 class ItemDB(Base):
     __tablename__ = "items"
-
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, index=True)
     description = Column(String)
     done = Column(Boolean, default=False)
 
+# Create tables
+Base.metadata.create_all(bind=engine)
+
 # FastAPI app
 app = FastAPI()
 
-# Allow frontend app (Vercel) to make requests to the backend
+# Allow frontend app (Vercel)
 origins = [
-    "https://app-api-frontend-3h6cg3wkc-bling011s-projects.vercel.app",  # Replace with your Vercel frontend URL
+    "https://your-frontend-url.vercel.app",  # Replace with your actual frontend Vercel URL
 ]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,  # Allow only the frontend URL to access the backend
+    allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],  # Allow all HTTP methods
-    allow_headers=["*"],  # Allow all headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-# Dependency to get the DB session
+# DB dependency
 def get_db():
     db = SessionLocal()
     try:
@@ -58,7 +61,7 @@ def get_db():
     finally:
         db.close()
 
-# Create item (POST)
+# Routes
 @app.post("/items/")
 def create_item(item: Item, db: Session = Depends(get_db)):
     db_item = ItemDB(name=item.name, description=item.description, done=item.done)
@@ -67,13 +70,10 @@ def create_item(item: Item, db: Session = Depends(get_db)):
     db.refresh(db_item)
     return db_item
 
-# Get all items (GET)
 @app.get("/items/")
 def read_items(skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):
-    items = db.query(ItemDB).offset(skip).limit(limit).all()
-    return items
+    return db.query(ItemDB).offset(skip).limit(limit).all()
 
-# Get item by ID (GET)
 @app.get("/items/{item_id}")
 def read_item(item_id: int, db: Session = Depends(get_db)):
     item = db.query(ItemDB).filter(ItemDB.id == item_id).first()
@@ -81,7 +81,6 @@ def read_item(item_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Item not found")
     return item
 
-# Update item (PUT)
 @app.put("/items/{item_id}")
 def update_item(item_id: int, item: Item, db: Session = Depends(get_db)):
     db_item = db.query(ItemDB).filter(ItemDB.id == item_id).first()
@@ -94,7 +93,6 @@ def update_item(item_id: int, item: Item, db: Session = Depends(get_db)):
     db.refresh(db_item)
     return db_item
 
-# Mark item as done (PATCH)
 @app.patch("/items/{item_id}/done")
 def mark_item_done(item_id: int, db: Session = Depends(get_db)):
     db_item = db.query(ItemDB).filter(ItemDB.id == item_id).first()
@@ -105,7 +103,6 @@ def mark_item_done(item_id: int, db: Session = Depends(get_db)):
     db.refresh(db_item)
     return db_item
 
-# Delete item (DELETE)
 @app.delete("/items/{item_id}")
 def delete_item(item_id: int, db: Session = Depends(get_db)):
     db_item = db.query(ItemDB).filter(ItemDB.id == item_id).first()
